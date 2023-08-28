@@ -246,36 +246,63 @@ local function buildParseSubtree()
 	return node
 end
 tree = buildParseSubtree()
-local ast = {}
-function createAST(tree)
+
+local function createAST()
 	local ast = {axiom = tree.subtree[2], terms = {}, nterms = {}, rules = {}}
-	local function addRec(node, list, func)
+	local function addRec(node, list, func, subtreeNodeIdx, subtreeListIdx)
 		func(node)
-		if #termList.subtree == 0 then return end
-		addRec(termList.subtree[1], termList.subtree[2], func)
+		if #list.subtree == 0 then return end
+		if not subtreeNodeIdx then subtreeNodeIdx = 1 end
+		if not subtreeListIdx then subtreeListIdx = 2 end
+		addRec(list.subtree[1], list.subtree[2], func)
 	end
-	addRec(tree.subtree[6], tree.subtree[7], function (node) 
+	addRec(tree.subtree[6], tree.subtree[7], function (node)
 		table.insert(ast.terms, node)
 	end)
 	addRec(tree.subtree[4].subtree[1], tree.subtree[4].subtree[2], function (node)
 		table.insert(ast.nterms, node)
 	end)
-	local function addRule(node)
-		ast.rules[] 
+
+	local function getAstAltern(rightSideAltNode)
+		local astAltern = {name = "Altern", children = {}}
+		if #rightSideAltNode.subtree == 1 then -- $EPS
+			table.insert(astAltern.children, rightSideAltNode.subtree[1])
+		else
+			addRec(rightSideAltNode.subtree[1], rightSideAltNode.subtree[2], function(node)
+				table.insert(astAltern.children, node)
+			end)
+		end
+
+		return astAltern
 	end
-	addRec(tree.subtree[9], tree.subtree[10], addRule)
+	local function getAstExpr(ruleNode)
+		local astExprNode = {name = "Expr", children = {}}
+		addRec(ruleNode.subtree[4], ruleNode.subtree[6], function (rightSideAltNode)
+			local astAlternNode = getAstAltern(rightSideAltNode)
+			table.insert(astExprNode.children, astAlternNode)
+		end, 1, 3)
+
+		return astExprNode
+	end
+	addRec(tree.subtree[9], tree.subtree[10], function (ruleNode)
+		local astExpr = getAstExpr(ruleNode)
+		ast.rules[ruleNode.subtree[2]] = astExpr
+	end)
 end
 
-local grammarRules = {}
-local ruleNode = tree.subtree[9]
-assert(ruleNode == "Rule")
-function addRule(aRule)
+local ast = createAST()
 
-end
 
-for 
+-- local grammarRules = {}
+-- local ruleNode = tree.subtree[9]
+-- assert(ruleNode == "Rule")
+-- function addRule(aRule)
+
+-- end
+
+-- for 
 require('first')
-local first = getFirst(rules)
+local first = getFirst(ast)
 
 print("end")
 

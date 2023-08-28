@@ -1,0 +1,6 @@
+$AXIOM A
+$NTERM A C
+$TERM "a"
+
+$RULE A = C "a"
+$RULE C = $EPS
