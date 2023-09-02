@@ -1,6 +1,9 @@
-$AXIOM A
-$NTERM A C
-$TERM "a"
+$AXIOM S
+$NTERM A B
+$TERM "a" "b" "c"
 
-$RULE A = C "a"
-$RULE C = $EPS
+$RULE S = A B
+$RULE A = $EPS
+		  "a"
+$RULE B = $EPS
+		  "b"

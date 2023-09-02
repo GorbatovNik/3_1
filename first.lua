@@ -1,9 +1,19 @@
 local function TableConcat(t1, t2)
-	for i = 1, #t2 do
-		t1[#t1+1] = t2[i]
+	local map = {}
+	for _, t in ipairs(t1) do
+		map[t.value] = t
+	end
+	for _, t in ipairs(t2) do
+		map[t.value] = t
 	end
 
-	return t1
+	local res = {}
+
+	for _, t in pairs(map) do
+		table.insert(res, t)
+	end
+
+	return res
 end
 
 local function haveEps(aFirst)
@@ -23,27 +33,21 @@ local function woEps(aFirst)
 	return res
 end
 
+local first = {}
+local follow = {}
+
 local function getFirstConcat(concatTree)
-	assert(#concatTree.children ~=0 )
-	if concatTree.children[1].name == "Option" then
-		local f = getFirstExpr(concatTree.children[1].children[2])
-		if not haveEps(f) then
-			return TableConcat(f, {{domain = "$EPS", value = "$EPS"}})
-		else
-			return f
-		end
-	elseif concatTree.children[1].name == "Grouping" then
-		return getFirstExpr(concatTree.children[1].children[2])
-	end
-	if not concatTree.children[1].domain then return {} end
-	if concatTree.children[1].domain == "NTERM" or concatTree.children[1].domain == "TERM" then
-		return { concatTree.children[1] }
-	elseif concatTree.children[1].domain == "LPAREN" or concatTree.children[1].domain == "LPAREN_CURVE" then
-		return getFirstExpr(concatTree.children[2])
+	if not concatTree.domain then return {} end
+	if concatTree.domain == "$EPS" then
+		return { {domain = "$EPS", value = "$EPS"} }
+	elseif concatTree.domain == "TERM" then
+		return { concatTree }
+	elseif concatTree.domain == "NTERM" then
+		return first[concatTree.value]
 	end
 end
 
-local function getFirstAltern(alternTree, idx)
+function getFirstAltern(alternTree, idx)
 	if not idx then idx = 1 end
 	if not alternTree.children then return {} end
 	if #alternTree.children < idx then return {} end
@@ -71,55 +75,137 @@ local function getFirstExpr(exprTree)
 	return firstList
 end
 
-
-local function union(set1, set2)
-	local set = {}
-	for key, value in pairs(set1) do
-		set[key] = value
-	end
-	for key, value in pairs(set2) do
-		set[key] = value
+local function isIncl(map1, map2)
+	for name, _ in pairs(map1) do
+		if not map2[name] then return false end
 	end
 
-	return set
+	return true
 end
 
-local function expandFirst(symb, first, expandedFirst)
-	if expandedFirst[symb] then
-		return
+local function isInclList(list1, list2)
+	local map2 = {}
+	for _, l2 in ipairs(list2) do
+		map2[l2.value] = l2
+	end
+	for _, l1 in ipairs(list1) do
+		if not map2[l1.value] then return false end
 	end
 
-	expandedFirst[symb] = {}
-	local productions = first[symb]
-	for _, prod in ipairs(productions) do
-		if prod.domain == "TERM" or prod.domain == "$EPS" then
-			expandedFirst[symb][prod.value] = true
-		elseif prod.domain == "NTERM" then
-			expandFirst(prod.value, first, expandedFirst)
-			expandedFirst[symb] = union(expandedFirst[symb], expandedFirst[prod.value])
+	return true
+end
+
+local woRepT2 = {}
+local function isDiff(t1, t2)
+	if type(t1) ~= "table" then return false end
+	local valmap1 = {}
+	for _, dom in ipairs(t1) do
+		valmap1[dom.value] = true
+	end
+	local valmap2 = {}
+	woRepT2 = {}
+	for _, dom in ipairs(t2) do
+		if not valmap2[dom.value] then
+			valmap2[dom.value] = true
+			table.insert(woRepT2, dom)
 		end
 	end
+
+	return not (isIncl(valmap1, valmap2) and isIncl(valmap2, valmap1))
 end
 
-
 function getFirst(ast)
+	first = {}
+	
+	for _, nterm in ipairs(ast.nterms) do
+		first[nterm.value] = {}
+	end
+	
+	local changed = true
+	while changed do
+		changed = false
+		for left, right in pairs(ast.rules) do
+			local firstExpr = getFirstExpr(right)
 
-    local first = {}
+			if isDiff(first[left], firstExpr) then
+				changed = true
+				first[left] = woRepT2
+			end
+		end
+	end
+    
+	for _, nterm in ipairs(ast.nterms) do
+		-- expandFirst(nterm)
+		local str = ""
+		for _, dom in ipairs(first[nterm.value]) do
+			if dom.domain == "TERM" then
+				str = str .. "\"" .. dom.value .. "\", "
+			else
+				str = str .. dom.value .. ", "
+			end
+		end
+		print(string.format("FIRST(%s) = {%s}", nterm.value, str))
+	end
 
-    for left, right in pairs(ast.rules) do
-        first[left] = getFirstExpr(right)
-    end
+    return first
+end
 
-    local expandedFirst = {}
+function getFollow(ast)
+	folow = {}
 
-    for _, nterm in ipairs(ast.nterms) do
-        expandFirst(nterm, first, expandedFirst)
-        local str = ""
-        for name, _ in pairs(expandedFirst[nterm]) do
-            str = str .. "\"" .. name .. "\", "
-        end
-        print(string.format("FIRST(%s) = {%s}", nterm, str))
-    end
+	for _, nterm in ipairs(ast.nterms) do
+		follow[nterm.value] = {}
+	end
+	table.insert(follow[ast.axiom.value], { domain = "$", value = "$" })
 
-    return expandedFirst
+	for left, exprAstNode in pairs(ast.rules) do
+		for _, altAstNode in ipairs(exprAstNode.children) do
+			for i, dom in ipairs(altAstNode.children) do
+				if dom.domain == "NTERM" then
+					local firstV = getFirstAltern(altAstNode, i + 1)
+                    if dom.value == "NLs" then
+                        print("1")
+                    end
+					follow[dom.value] = TableConcat(follow[dom.value], woEps(firstV))
+				end
+			end
+		end
+	end
+
+	local changed = true
+	while changed do
+		changed = false
+		for left, exprAstNode in pairs(ast.rules) do
+			for _, altAstNode in ipairs(exprAstNode.children) do
+				for i, dom in ipairs(altAstNode.children) do
+					if dom.domain == "NTERM" then
+						local firstV = getFirstAltern(altAstNode, i + 1)
+						if haveEps(firstV) or #firstV == 0 then
+							if not isInclList(follow[left], follow[dom.value]) then
+								changed = true
+                                if dom.value == "NLs" then
+                                    print("1")
+                                end
+								follow[dom.value] = TableConcat(follow[dom.value], follow[left])
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+	for _, nterm in ipairs(ast.nterms) do
+		-- expandFirst(nterm)
+		local str = ""
+		for _, dom in ipairs(follow[nterm.value]) do
+			if dom.domain == "TERM" then
+				str = str .. "\"" .. dom.value .. "\", "
+			else
+				str = str .. dom.value .. ", "
+			end
+		end
+		print(string.format("FOLLOW(%s) = {%s}", nterm.value, str))
+	end
+
+	return follow
 end

@@ -1,13 +1,7 @@
-$AXIOM Ew
-$NTERM E' T T' F
-$TERM  "+"  "*"  "("  ")"  "n"
+$AXIOM E
+$NTERM E'
+$TERM  "+"
 
-* правила грамматики
-$RULE  E  = T E'
-$RULE  E' = "+" T E'
+$RULE  E  = E'
             $EPS
-$RULE  T  = F T'
-$RULE  T' = "*" F T'
-            $EPS
-$RULE  F  = "n"
-            "(" E ")"
+$RULE  E' = "$EPS"

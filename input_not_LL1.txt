@@ -1,23 +1,25 @@
 $AXIOM Grammar
-$NTERM NTermDeclOpt NTermList TermList RuleList Rule RightSideAlt NTermOrTermListOpt RightSideAltListOpt NLsOpt NTermOrTerm
+$NTERM NTermDeclOpt NTermList TermList RuleList Rule RightSideAlt NTermOrTermListOpt RightSideAltListOpt NLs NLsOpt NTermOrTerm
 $TERM "$AXIOM" "$NTERM" "$TERM" "$RULE" "$TERM_EPS" "NTERM" "TERM" "NL" "ASSIGN"
 
-$RULE Grammar = "$AXIOM" "NTERM" NL NLsOpt NTermDeclOpt "$TERM" "TERM" TermList NL NLsOpt Rule RuleList
-$RULE NTermDeclOpt = "$NTERM" NTermList NL NLsOpt
+$RULE Grammar = "$AXIOM" "NTERM" NLs NTermDeclOpt "$TERM" "TERM" TermList NLs Rule RuleList
+$RULE NTermDeclOpt = "$NTERM" NTermList NLs
 $RULE NTermList = "NTERM" NTermList
 				  $EPS
 $RULE TermList = "TERM" TermList
 				  $EPS
 $RULE RuleList = Rule RuleList
 				  $EPS
-$RULE Rule = "$RULE" "NTERM" "ASSIGN" RightSideAlt NL NLsOpt RightSideAltListOpt NLsOpt
+$RULE Rule = "$RULE" "NTERM" "ASSIGN" RightSideAlt NLs RightSideAltListOpt NLsOpt
 $RULE RightSideAlt = "$TERM_EPS"
 					 NTermOrTerm NTermOrTermListOpt
 $RULE NTermOrTerm = "NTERM"
 					"TERM"
 $RULE NTermOrTermListOpt = NTermOrTerm NTermOrTermListOpt
 						   $EPS
-$RULE RightSideAltListOpt = RightSideAlt NL NLsOpt RightSideAltListOpt
+$RULE RightSideAltListOpt = RightSideAlt NLs RightSideAltListOpt
 							$EPS
+$RULE NLs = "NL" NLsOpt
+			"NL"
 $RULE NLsOpt = "NL" NLsOpt
 			   $EPS
