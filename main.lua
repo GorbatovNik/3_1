@@ -109,7 +109,7 @@ addTrans({"ln", "eof"}, "FComm", "FComm", true)
 local q0 = "q0"
 local F = {FKW = 6, FNTmh = 5, FNTm = 4, FTm = 3, FWS = 2, FComm = 1} -- priority and ids
 
-local file = io.open("input2.txt", "r")
+local file = io.open("input1.txt", "r")
 local code = file:read("a")
 -- print("PROGRAM:\n" .. code)
 
@@ -183,20 +183,20 @@ local function cellFunction(cell)
 end
 local ppt = csv2table("table.csv", cellFunction)
 
+local function process(ppt)
 local rules = {}
 local terms = {"$AXIOM", "$NTERM", "$TERM", "$RULE", "NTERM", "TERM", "ASSIGN", "NL", "END_OF_PROGRAM", "$EPS"}
 local terms_map = list2map(terms)
 local nterms = {}
 for nterm, _ in pairs(ppt) do table.insert(nterms, nterm) end
 local nterms_map = list2map(nterms)
-
 local function topDownParse()
 	local stack = {"END_OF_PROGRAM", "Grammar"}
 	local token = tokens[1]
 	local tokenIdx = 2
 	while true do
 		local x = stack[#stack]
-		if x == "$RULE" then
+		if tokenIdx == 19 then
 			print()
 		end
 		if terms_map[x] then
@@ -251,7 +251,7 @@ end
 tree = buildParseSubtree()
 
 local function createAST()
-	local ast = {axiom = tree.subtree[2], terms = {}, nterms = {}, rules = {}}
+	local ast = {axiom = tree.subtree[2 + 1], terms = {}, nterms = {}, rules = {}}
 	table.insert(ast.nterms, ast.axiom)
 	local function addRec(node, list, func, subtreeNodeIdx, subtreeListIdx)
 		func(node)
@@ -260,11 +260,11 @@ local function createAST()
 		if not subtreeListIdx then subtreeListIdx = 2 end
 		addRec(list.subtree[subtreeNodeIdx], list.subtree[subtreeListIdx], func)
 	end
-	addRec(tree.subtree[6], tree.subtree[7], function (node)
+	addRec(tree.subtree[7 + 1], tree.subtree[8 + 1], function (node)
 		table.insert(ast.terms, node)
 	end)
-	if tree.subtree[4].subtree and #tree.subtree[4].subtree[2].subtree > 0 then
-		addRec(tree.subtree[4].subtree[2].subtree[1], tree.subtree[4].subtree[2].subtree[2], function (node)
+	if #tree.subtree[5 + 1].subtree>0 then
+		addRec(tree.subtree[5 + 1].subtree[2].subtree[1], tree.subtree[5 + 1].subtree[2].subtree[2], function (node)
 			table.insert(ast.nterms, node)
 		end)
 	end
@@ -290,10 +290,37 @@ local function createAST()
 
 		return astExprNode
 	end
-	addRec(tree.subtree[9], tree.subtree[10], function (ruleNode)
-		local astExpr = getAstExpr(ruleNode)
-		ast.rules[ruleNode.subtree[2].value] = astExpr
-	end)
+	-- local function
+	local left
+	local addRules
+	local function addRSAListOrRuleListOrEnd(node)
+		if #node.subtree == 0 then return end
+		if #node.subtree == 1 then
+			addRules(node.subtree[1])
+
+			return
+		end
+		if #node.subtree == 2 then
+			local astAltern = getAstAltern(node.subtree[1])
+			table.insert(ast.rules[left].children, astAltern)
+			if #node.subtree[2].subtree > 0 then  
+				addRSAListOrRuleListOrEnd(node.subtree[2].subtree[3])
+			end
+
+			return
+		end
+	end
+	addRules = function (rulesNode)
+		local astExprNode = {name = "Expr", children = {}}
+		left = rulesNode.subtree[2].value
+		local astAltern = getAstAltern(rulesNode.subtree[4])
+		table.insert(astExprNode.children, astAltern)
+		ast.rules[left] = astExprNode
+		if #rulesNode.subtree[5].subtree > 0 then  
+			addRSAListOrRuleListOrEnd(rulesNode.subtree[5].subtree[3])
+		end
+	end
+	addRules(tree.subtree[11 + 1])
 
 	return ast
 end
@@ -353,4 +380,26 @@ for x, uExpr in pairs(ast.rules) do
 		end
 	end
 end
+local ppt2 = {}
+for nterm, tab in pairs(ppt) do
+	ppt2[nterm] = {}
+	for term, _ in pairs(tab) do
+		ppt2[nterm][term] = {}
+		for _, a in ipairs(delta[nterm][term]) do
+			if a == "ERROR" or a.domain == "$EPS" then
+				ppt2[nterm][term] = (a == "ERROR") and {"ERROR"} or {"eps"}
+				break
+			end
+			if a.domain == "TERM" and a.value == "$TERM_EPS" then
+				table.insert(ppt2[nterm][term], "$EPS")
+			else
+				table.insert(ppt2[nterm][term], a.value)
+			end
+		end
+	end
+end
+return ppt2
+end
+
+process(process(ppt))
 print("end")
