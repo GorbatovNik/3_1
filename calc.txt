@@ -1,0 +1,12 @@
+$AXIOM E
+$NTERM T F
+$TERM "INTEGER" "(" ")" "/" "*" "+" "-"
+
+$RULE E = E "+" T
+		  E "-" T
+		  T
+$RULE T = T "*" F
+		  T "/" F
+		  F
+$RULE F = "INTERGER"
+		  "(" E ")"

@@ -52,9 +52,6 @@ function getFirstAltern(alternTree, idx)
 	if not alternTree.children then return {} end
 	if #alternTree.children < idx then return {} end
 	-- assert(#alternTree.children ~= 0) 
-	if alternTree.children[idx].startLine == 14 then
-		print()
-	end
 	local firstFirstConcat =  getFirstConcat(alternTree.children[idx])
 	local otherFirstConcat =  getFirstAltern(alternTree, idx + 1)
 
@@ -62,9 +59,6 @@ function getFirstAltern(alternTree, idx)
 		return firstFirstConcat
 	end
 	
-	if not firstFirstConcat then
-		print()
-	end
 	if haveEps(firstFirstConcat) then
 		return TableConcat(woEps(firstFirstConcat), otherFirstConcat)
 	end
@@ -169,9 +163,6 @@ function getFollow(ast)
 			for i, dom in ipairs(altAstNode.children) do
 				if dom.domain == "NTERM" then
 					local firstV = getFirstAltern(altAstNode, i + 1)
-                    if dom.value == "NLs" then
-                        print("1")
-                    end
 					follow[dom.value] = TableConcat(follow[dom.value], woEps(firstV))
 				end
 			end
@@ -186,15 +177,9 @@ function getFollow(ast)
 				for i, dom in ipairs(altAstNode.children) do
 					if dom.domain == "NTERM" then
 						local firstV = getFirstAltern(altAstNode, i + 1)
-						if not firstV then
-							print()
-						end
 						if haveEps(firstV) or #firstV == 0 then
 							if not isInclList(follow[left], follow[dom.value]) then
 								changed = true
-                                if dom.value == "NLs" then
-                                    print("1")
-                                end
 								follow[dom.value] = TableConcat(follow[dom.value], follow[left])
 							end
 						end
