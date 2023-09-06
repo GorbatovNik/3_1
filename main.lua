@@ -109,7 +109,7 @@ addTrans({"ln", "eof"}, "FComm", "FComm", true)
 local q0 = "q0"
 local F = {FKW = 6, FNTmh = 5, FNTm = 4, FTm = 3, FWS = 2, FComm = 1} -- priority and ids
 
-local file = io.open("input1.txt", "r")
+local file = io.open("calc.txt", "r")
 local code = file:read("a")
 -- print("PROGRAM:\n" .. code)
 
@@ -183,5 +183,6 @@ local function cellFunction(cell)
 end
 local ppt = csv2table("table.csv", cellFunction)
 require('test') 
-process(process(process(process(process(process(ppt,tokens),tokens),tokens),tokens),tokens),tokens)
+-- process(process(process(process(process(process(ppt,tokens),tokens),tokens),tokens),tokens),tokens)
+local ppt2 = process(ppt, tokens)
 print("end")

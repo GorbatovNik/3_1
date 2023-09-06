@@ -78,7 +78,7 @@ function Lexer:nextToken()
             end
             value = nil
         elseif tokenType == "TERM" then
-            value = string.sub(value, 2, string.len(value) - 1)
+            -- value = string.sub(value, 2, string.len(value) - 1)
         end
         local token = {startPos = startPos, finishPos = lastFinishPos, startLine = startLine, finishLine = lastFinishLine, domain = domain, value = value}
         self.index = lastFinishIndex

@@ -8,5 +8,5 @@ $RULE E = E "+" T
 $RULE T = T "*" F
 		  T "/" F
 		  F
-$RULE F = "INTERGER"
+$RULE F = "INTEGER"
 		  "(" E ")"

@@ -1,12 +1,19 @@
 function process(ppt, tokens)
-	local rules = {}
-	local terms = {"$AXIOM", "$NTERM", "$TERM", "$RULE", "NTERM", "TERM", "ASSIGN", "NL", "END_OF_PROGRAM", "$EPS"}
-	local terms_map = list2map(terms)
+	-- У языка есть домены. У токена есть домен. У грамматики доменов нет. У грамматики есть терминалы и нетерминалы.
+	-- Сейчас я рассматриваю язык описания грамматик LGD (Langauge of Grammar Description).
+	-- Грамматику, описывающую язык LGD, я назову GLGD. Каждый домен LGD сопряжен с некоторым терминалом из GLGD.
+	-- Домен отличается от терминала тем, что терминал начинается и заканчивается апострофами.
+	-- Домену END_OG_PROGRAM не соответвует ни один терминал (хотя должен).
+
+	local rules = {} -- здесь будут правила грамматики GLGD, и если их применять последовательно, то получится исходное слово
+					 -- правильнее было бы здесь использовать терминалы, но гораздо удобнее заменить их доменами.
+	local domains = {"$AXIOM", "$NTERM", "$TERM", "$RULE", "NTERM", "TERM", "ASSIGN", "NL", "END_OF_PROGRAM", "$EPS"}
+	local domains_map = list2map(domains)
 	local nterms = {}
 	for nterm, _ in pairs(ppt) do table.insert(nterms, nterm) end
 	local nterms_map = list2map(nterms)
 	local function topDownParse()
-		local stack = {"END_OF_PROGRAM", "Grammar"}
+		local stack = {"END_OF_PROGRAM", "Grammar"} -- в стеке тоже домены (хотя должны быть терминалы)
 		local token = tokens[1]
 		local tokenIdx = 2
 		while true do
@@ -14,7 +21,7 @@ function process(ppt, tokens)
 			if tokenIdx == 19 then
 				print()
 			end
-			if terms_map[x] then
+			if domains_map[x] then
 				if x == token.domain then
 					stack[#stack] = nil
 					token = tokens[tokenIdx]
@@ -42,6 +49,8 @@ function process(ppt, tokens)
 	end
 	topDownParse()
 
+	-- Начинаю строить дерево разбора для слова языка LGD
+	-- Вершинами будут нетерминалы, а листьями - токены
 	local tree = {}
 	local ruleIdx = 1
 	local tokenIdx = 1
@@ -52,7 +61,7 @@ function process(ppt, tokens)
 		node.name = rule.left
 		node.subtree = {}
 		for _, t in ipairs(rule.right) do
-			if terms_map[t] then
+			if domains_map[t] then
 				local token = tokens[tokenIdx]
 				tokenIdx = tokenIdx + 1
 				table.insert(node.subtree, token)
@@ -65,8 +74,11 @@ function process(ppt, tokens)
 	end
 	tree = buildParseSubtree()
 
+	-- а здесь уже не будет никаких токенов. Все листья в правилах - это списки из нетерминалов и терминалов.
+	-- Причем эти нетерминалы и терминалы принадлежат новой грамматике, описанием которой на языке LGD является входное слово.
+	-- Назовем новую грамматику NG (New Grammar). А язык, который эта грамматика описывет, - LNG
 	local function createAST()
-		local ast = {axiom = tree.subtree[2 + 1], terms = {}, nterms = {}, rules = {}}
+		local ast = {axiom = tree.subtree[2 + 1].value, terms = {}, nterms = {}, rules = {}}
 		table.insert(ast.nterms, ast.axiom)
 		local function addRec(node, list, func, subtreeNodeIdx, subtreeListIdx)
 			func(node)
@@ -76,21 +88,21 @@ function process(ppt, tokens)
 			addRec(list.subtree[subtreeNodeIdx], list.subtree[subtreeListIdx], func)
 		end
 		addRec(tree.subtree[7 + 1], tree.subtree[8 + 1], function (node)
-			table.insert(ast.terms, node)
+			table.insert(ast.terms, node.value)
 		end)
 		if #tree.subtree[5 + 1].subtree>0 then
 			addRec(tree.subtree[5 + 1].subtree[2].subtree[1], tree.subtree[5 + 1].subtree[2].subtree[2], function (node)
-				table.insert(ast.nterms, node)
+				table.insert(ast.nterms, node.value)
 			end)
 		end
 
 		local function getAstAltern(rightSideAltNode)
 			local astAltern = {name = "Altern", children = {}}
 			if #rightSideAltNode.subtree == 1 then -- $EPS
-				table.insert(astAltern.children, rightSideAltNode.subtree[1])
+				table.insert(astAltern.children, rightSideAltNode.subtree[1].domain)
 			else
 				addRec(rightSideAltNode.subtree[1], rightSideAltNode.subtree[2], function(node)
-					table.insert(astAltern.children, node.subtree[1])
+					table.insert(astAltern.children, node.subtree[1].value)
 				end)
 			end
 
@@ -147,11 +159,13 @@ function process(ppt, tokens)
 	local follow = getFollow(ast)
 
 	local delta = {}
-	for nterm, tab in pairs(ppt) do
+	for _, nterm in pairs(ast.nterms) do
 		delta[nterm] = {}
-		for term, _ in pairs(tab) do
-			delta[nterm][term] = {"ERROR"}
+		for _, term in pairs(ast.terms) do
+			local domen =  string.sub(term, 2, string.len(term) - 1)
+			delta[nterm][domen] = {"ERROR"}
 		end
+		delta[nterm]["END_OF_PROGRAM"] = {"ERROR"}
 	end
 
 	for x, uExpr in pairs(ast.rules) do
@@ -160,60 +174,64 @@ function process(ppt, tokens)
 			local firstU = getFirstAltern(uAlt)
 			local haveEps = false
 			for _, a in ipairs(firstU) do
-				local a = {domain = a.domain, value = a.value}
-				if a.domain == "$EPS" then
+				-- local a = {domain = a.domain, value = a.value}
+				if a == "$EPS" then
 					haveEps = true
 				else
-					if a.value == "$TERM_EPS" then
-						a.value = "$EPS"
+					if isTerm(a) then
+						a = string.sub(a, 2, string.len(a) - 1)
 					end
-					if x == "NLsOpt" and a.value == "NL" then
-						print("1")
+					if #delta[x][a] ~= 1 or delta[x][a][1] ~= "ERROR" then
+						error("not LL(1)")
 					end
-					if #delta[x][a.value] ~= 1 or delta[x][a.value][1] ~= "ERROR" then
-						error()
-					end
-					delta[x][a.value] = u
+					delta[x][a] = u
 				end
 			end
 			if haveEps then
 				local followX = follow[x]
 				for _, b in ipairs(followX) do
-					local b = {domain = b.domain, value = b.value}
-					if b.domain == "$" then
-						b = {domain = "END_OF_PROGRAM", value = "END_OF_PROGRAM"}
+					if isTerm(b) then
+						b = string.sub(b, 2, string.len(b) - 1)
 					end
-					if b.value == "$TERM_EPS" then
-						b.value = "$EPS"
+					if b == "$" then
+						b = "END_OF_PROGRAM"
 					end
-					if x == "NLsOpt" and b.value == "NL" then
-						print("1")
+					if #delta[x][b] ~= 1 or delta[x][b][1] ~= "ERROR" then
+						error("not LL(1)")
 					end
-					if #delta[x][b.value] ~= 1 or delta[x][b.value][1] ~= "ERROR" then
-						error()
-					end
-					delta[x][b.value] = u
+					delta[x][b] = u
 				end
 			end
 		end
 	end
 	local ppt2 = {}
-	for nterm, tab in pairs(ppt) do
+	for nterm, tab in pairs(delta) do
 		ppt2[nterm] = {}
 		for term, _ in pairs(tab) do
 			ppt2[nterm][term] = {}
 			for _, a in ipairs(delta[nterm][term]) do
-				if a == "ERROR" or a.domain == "$EPS" then
+				if a == "ERROR" or a == "$EPS" then
 					ppt2[nterm][term] = (a == "ERROR") and {"ERROR"} or {"eps"}
 					break
 				end
-				if a.domain == "TERM" and a.value == "$TERM_EPS" then
-					table.insert(ppt2[nterm][term], "$EPS")
-				else
-					table.insert(ppt2[nterm][term], a.value)
-				end
+				table.insert(ppt2[nterm][term], isTerm(a) and string.sub(a, 2, string.len(a) - 1) or a)
 			end
 		end
 	end
+
+	-- for nt1, nt1tab in pairs(ppt) do
+	-- 	for t1, t1tab in pairs(nt1tab) do
+	-- 		local t2tab = ppt2[nt1][t1]
+	-- 		assert(#t1tab == #t2tab)
+	-- 		if isDiff(t1tab, t2tab) then
+	-- 			local bef = ""
+	-- 			for _, el in ipairs(t1tab) do bef = bef .. el .. ", " end
+	-- 			local aft = ""
+	-- 			for _, el in ipairs(t2tab) do aft = aft .. el .. ", " end
+	-- 			print(string.format("[%s][%s]:\nBEFORE: (%s)\nAFTER: (%s)", nt1, t1, bef, aft))
+	-- 		end
+	-- 	end
+	-- end
+
 	return ppt2
 end

@@ -1,6 +1,6 @@
 $AXIOM Grammar
 $NTERM NTermDeclOpt NTermList TermList Rules RightSideAlt NTermOrTermListOpt NLsOpt NTermOrTerm RSAListOrRuleListOrEndOpt RSAListOrRuleListOrEnd
-$TERM "$AXIOM" "$NTERM" "$TERM" "$RULE" "$TERM_EPS" "NTERM" "TERM" "NL" "ASSIGN"
+$TERM "$AXIOM" "$NTERM" "$TERM" "$RULE" "$EPS" "NTERM" "TERM" "NL" "ASSIGN"
 
 $RULE Grammar = NLsOpt "$AXIOM" "NTERM" "NL" NLsOpt NTermDeclOpt "$TERM" "TERM" TermList "NL" NLsOpt Rules
 $RULE NTermDeclOpt = "$NTERM" NTermList "NL" NLsOpt
@@ -15,7 +15,7 @@ $RULE RSAListOrRuleListOrEndOpt = $EPS
 $RULE RSAListOrRuleListOrEnd = Rules
 						  	   RightSideAlt RSAListOrRuleListOrEndOpt
 							   $EPS
-$RULE RightSideAlt = "$TERM_EPS"
+$RULE RightSideAlt = "$EPS"
 					 NTermOrTerm NTermOrTermListOpt
 $RULE NTermOrTerm = "NTERM"
 					"TERM"

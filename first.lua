@@ -1,15 +1,15 @@
 local function TableConcat(t1, t2)
 	local map = {}
 	for _, t in ipairs(t1) do
-		map[t.value] = t
+		map[t] = true
 	end
 	for _, t in ipairs(t2) do
-		map[t.value] = t
+		map[t] = true
 	end
 
 	local res = {}
 
-	for _, t in pairs(map) do
+	for t, _ in pairs(map) do
 		table.insert(res, t)
 	end
 
@@ -18,7 +18,7 @@ end
 
 local function haveEps(aFirst)
 	for _, f in ipairs(aFirst) do
-		if f.domain == "$EPS" then return true end
+		if f == "$EPS" then return true end
 	end
 
 	return false
@@ -27,7 +27,7 @@ end
 local function woEps(aFirst)
 	local res = {}
 	for _, f in ipairs(aFirst) do
-		if f.domain ~= "$EPS" then table.insert(res, f) end
+		if f ~= "$EPS" then table.insert(res, f) end
 	end
 
 	return res
@@ -36,14 +36,15 @@ end
 local first = {}
 local follow = {}
 
-local function getFirstConcat(concatTree)
-	if not concatTree.domain then return {} end
-	if concatTree.domain == "$EPS" then
-		return { {domain = "$EPS", value = "$EPS"} }
-	elseif concatTree.domain == "TERM" then
-		return { concatTree }
-	elseif concatTree.domain == "NTERM" then
-		return first[concatTree.value]
+function isTerm(str)
+	return string.sub(str, 1, 1) == "\""
+end
+
+local function getFirstConcat(concat)
+	if isTerm(concat) or concat == "$EPS" then
+		return { concat }
+	else
+		return first[concat]
 	end
 end
 
@@ -75,50 +76,35 @@ local function getFirstExpr(exprTree)
 	return firstList
 end
 
-local function isIncl(map1, map2)
-	for name, _ in pairs(map1) do
-		if not map2[name] then return false end
-	end
+-- local function isIncl(map1, map2)
+-- 	for name, _ in pairs(map1) do
+-- 		if not map2[name] then return false end
+-- 	end
 
-	return true
-end
+-- 	return true
+-- end
 
 local function isInclList(list1, list2)
 	local map2 = {}
 	for _, l2 in ipairs(list2) do
-		map2[l2.value] = l2
+		map2[l2] = l2
 	end
 	for _, l1 in ipairs(list1) do
-		if not map2[l1.value] then return false end
+		if not map2[l1] then return false end
 	end
 
 	return true
 end
 
-local woRepT2 = {}
-local function isDiff(t1, t2)
-	if type(t1) ~= "table" then return false end
-	local valmap1 = {}
-	for _, dom in ipairs(t1) do
-		valmap1[dom.value] = true
-	end
-	local valmap2 = {}
-	woRepT2 = {}
-	for _, dom in ipairs(t2) do
-		if not valmap2[dom.value] then
-			valmap2[dom.value] = true
-			table.insert(woRepT2, dom)
-		end
-	end
-
-	return not (isIncl(valmap1, valmap2) and isIncl(valmap2, valmap1))
+function isDiff(list1, list2)
+	return not (isInclList(list1, list2) and isInclList(list2, list1))
 end
 
 function getFirst(ast)
 	first = {}
 	
 	for _, nterm in ipairs(ast.nterms) do
-		first[nterm.value] = {}
+		first[nterm] = {}
 	end
 	
 	local changed = true
@@ -129,7 +115,7 @@ function getFirst(ast)
 
 			if isDiff(first[left], firstExpr) then
 				changed = true
-				first[left] = woRepT2
+				first[left] = firstExpr
 			end
 		end
 	end
@@ -137,14 +123,10 @@ function getFirst(ast)
 	for _, nterm in ipairs(ast.nterms) do
 		-- expandFirst(nterm)
 		local str = ""
-		for _, dom in ipairs(first[nterm.value]) do
-			if dom.domain == "TERM" then
-				str = str .. "\"" .. dom.value .. "\", "
-			else
-				str = str .. dom.value .. ", "
-			end
+		for _, el in ipairs(first[nterm]) do
+			str = str .. el .. ", "
 		end
-		print(string.format("FIRST(%s) = {%s}", nterm.value, str))
+		print(string.format("FIRST(%s) = {%s}", nterm, str))
 	end
 
     return first
@@ -154,16 +136,19 @@ function getFollow(ast)
 	folow = {}
 
 	for _, nterm in ipairs(ast.nterms) do
-		follow[nterm.value] = {}
+		follow[nterm] = {}
 	end
-	table.insert(follow[ast.axiom.value], { domain = "$", value = "$" })
+	table.insert(follow[ast.axiom], "$")
 
 	for left, exprAstNode in pairs(ast.rules) do
 		for _, altAstNode in ipairs(exprAstNode.children) do
-			for i, dom in ipairs(altAstNode.children) do
-				if dom.domain == "NTERM" then
+			for i, el in ipairs(altAstNode.children) do
+				if not isTerm(el) and el ~= "$EPS" then
 					local firstV = getFirstAltern(altAstNode, i + 1)
-					follow[dom.value] = TableConcat(follow[dom.value], woEps(firstV))
+					if not follow[el] then
+						print()
+					end
+					follow[el] = TableConcat(follow[el], woEps(firstV))
 				end
 			end
 		end
@@ -174,13 +159,13 @@ function getFollow(ast)
 		changed = false
 		for left, exprAstNode in pairs(ast.rules) do
 			for _, altAstNode in ipairs(exprAstNode.children) do
-				for i, dom in ipairs(altAstNode.children) do
-					if dom.domain == "NTERM" then
+				for i, el in ipairs(altAstNode.children) do
+					if not isTerm(el) and el ~= "$EPS" then
 						local firstV = getFirstAltern(altAstNode, i + 1)
 						if haveEps(firstV) or #firstV == 0 then
-							if not isInclList(follow[left], follow[dom.value]) then
+							if not isInclList(follow[left], follow[el]) then
 								changed = true
-								follow[dom.value] = TableConcat(follow[dom.value], follow[left])
+								follow[el] = TableConcat(follow[el], follow[left])
 							end
 						end
 					end
@@ -191,14 +176,10 @@ function getFollow(ast)
 	for _, nterm in ipairs(ast.nterms) do
 		-- expandFirst(nterm)
 		local str = ""
-		for _, dom in ipairs(follow[nterm.value]) do
-			if dom.domain == "TERM" then
-				str = str .. "\"" .. dom.value .. "\", "
-			else
-				str = str .. dom.value .. ", "
-			end
+		for _, el in ipairs(follow[nterm]) do
+			str = str .. el .. ", "
 		end
-		print(string.format("FOLLOW(%s) = {%s}", nterm.value, str))
+		print(string.format("FOLLOW(%s) = {%s}", nterm, str))
 	end
 
 	return follow
