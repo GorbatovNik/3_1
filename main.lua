@@ -1,4 +1,4 @@
-package.path = ".\\..\\?.lua;" .. package.path
+package.path = ".\\..\\?.lua;.\\calculator\\?.lua;" .. package.path
 require('class')
 require('FiniteAutomaton')
 local V = {"h", "q", "doll", "eq", "a", "x", "i", "o", "m", "n", "t", "e", "r", "u", "l", "p", "s", "ln", "ws", "ast", "az", "eof", "oth"}
@@ -182,7 +182,9 @@ local function cellFunction(cell)
 	return tab
 end
 local ppt = csv2table("table.csv", cellFunction)
-require('test') 
+require('test')
 -- process(process(process(process(process(process(ppt,tokens),tokens),tokens),tokens),tokens),tokens)
 local ppt2 = process(ppt, tokens)
+require('calc_lexer')
+require('calc_parser')
 print("end")

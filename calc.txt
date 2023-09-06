@@ -1,12 +1,14 @@
 $AXIOM E
-$NTERM T F
+$NTERM T F E' T'
 $TERM "INTEGER" "(" ")" "/" "*" "+" "-"
 
-$RULE E = E "+" T
-		  E "-" T
-		  T
-$RULE T = T "*" F
-		  T "/" F
-		  F
+$RULE E = T E'
+$RULE T = F T'
 $RULE F = "INTEGER"
-		  "(" E ")"
+		   "(" E ")"
+$RULE E' = "+" T E'
+           "-" T E'
+		   $EPS
+$RULE T' = "*" F T'
+    	   "/" F T'
+		   $EPS
