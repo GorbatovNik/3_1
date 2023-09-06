@@ -34,6 +34,9 @@ function Calc_lexer:nextToken()
     local startLine = self.line
     local startPos = self.pos
     local currChar = (string.len(self.code) < self.index) and string.char(27) or string.sub(self.code, self.index, self.index)
+    if currChar == string.char(27) then
+        print()
+    end
     local currFactor = self.symbol2factor(currChar)
     local currState = self.fa.q0
     local lastFinishState = nil
@@ -65,7 +68,11 @@ function Calc_lexer:nextToken()
         local tokenType = self.priority2tokenType(self.fa.F[lastFinishState])
         local domain = tokenType
         if tokenType == "KW" then
-            domain = value
+            if value == string.char(27) then
+                domain = "END_OF_PROGRAM"
+            else
+                domain = value
+            end
             value = nil
         end
         local token = {startPos = startPos, finishPos = lastFinishPos, startLine = startLine, finishLine = lastFinishLine, domain = domain, value = value}

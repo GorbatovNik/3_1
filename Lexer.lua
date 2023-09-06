@@ -36,6 +36,9 @@ function Lexer:nextToken()
     local startLine = self.line
     local startPos = self.pos
     local currChar = (string.len(self.code) < self.index) and string.char(27) or string.sub(self.code, self.index, self.index)
+    if currChar == string.char(27) then
+        print()
+    end
     local currFactor = self.symbol2factor(currChar)
     local currState = self.fa.q0
     local lastFinishState = nil
