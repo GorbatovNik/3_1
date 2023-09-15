@@ -1,4 +1,13 @@
 package.path = ".\\..\\?.lua;.\\calculator\\?.lua;" .. package.path
+
+-- CFG_INPUT_GRAMMAR = "input1.txt" -- self-describing grammar
+CFG_INPUT_GRAMMAR = "calc.txt" -- calculator grammar
+CFG_USE_GENERATED_CSV = false
+CFG_GENERATE_CSV = true
+CFG_GENERATE_CALCULATOR_CODE = CFG_INPUT_GRAMMAR == "calc.txt"
+
+-- lua54.exe calculator.lua calculator/expr.txt
+
 require('class')
 require('FiniteAutomaton')
 local V = {"h", "q", "doll", "eq", "a", "x", "i", "o", "m", "n", "t", "e", "r", "u", "l", "p", "s", "ln", "ws", "ast", "az", "eof", "oth"}
@@ -109,7 +118,7 @@ addTrans({"ln", "eof"}, "FComm", "FComm", true)
 local q0 = "q0"
 local F = {FKW = 6, FNTmh = 5, FNTm = 4, FTm = 3, FWS = 2, FComm = 1} -- priority and ids
 
-local file = io.open("calc.txt", "r")
+local file = io.open(CFG_INPUT_GRAMMAR, "r")
 local code = file:read("a")
 -- print("PROGRAM:\n" .. code)
 
@@ -173,19 +182,27 @@ end
 -- end
 
 require('csv2table')
-local function cellFunction(cell)
-	local tab = {}
-	for c in string.gmatch(cell, "([^ ]+)") do
-		table.insert(tab, c)
-	end
 
-	return tab
+local ppt
+if CFG_USE_GENERATED_CSV then
+	ppt = csv2table("generated_table.csv")
+else
+	ppt = csv2table("table.csv")
 end
-local ppt = csv2table("table.csv", cellFunction)
 require('test')
 -- process(process(process(process(process(process(ppt,tokens),tokens),tokens),tokens),tokens),tokens)
+
 local ppt2 = process(ppt, tokens)
-require('calc_lexer')
-require('calc_parser')
-calc_process(ppt2)
-print("end")
+if CFG_GENERATE_CSV then
+	table2csv(ppt2, "generated_table.csv")
+end
+if CFG_GENERATE_CALCULATOR_CODE then
+	require('calc_generator')
+	local calc_code = calc_generate(table2csvString(ppt2))
+	file = io.open("calculator.lua", "w")
+	file:write(calc_code)
+	file:close()
+	require('calc_lexer')
+	require('calc_parser')
+	calc_process(ppt2)
+end

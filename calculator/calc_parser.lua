@@ -25,12 +25,6 @@ local d = {
 local q0 = "q0"
 local F = {FKW = 3, FInt = 2, FWS = 1} -- priority and ids
 
-local file = io.open(".\\calculator\\expr.txt", "r")
-local code = file:read("a")
-
-local fa = FiniteAutomaton(V, Q, q0, F, d)
-fa:det()
-
 
 local function symbol2factor(c)
 	local b = string.byte(c)
@@ -53,23 +47,34 @@ local function priority2tokenType(n)
 	return p2t[n]
 end
 
-require('calc_lexer')
-local lexer = Calc_lexer(fa, symbol2factor, code, priority2tokenType)
+-- require('calc_lexer')
+
+function calc_process(ppt, grammarPath)
+	if not grammarPath then
+		grammarPath = ".\\calculator\\expr.txt"
+	end
+	-- local file = io.open(".\\calculator\\expr.txt", "r")
+	local file = io.open(grammarPath, "r")
+	local code = file:read("a")
+
+	local fa = FiniteAutomaton(V, Q, q0, F, d)
+	fa:det()
 
 
-local tokens = {}
-local token = lexer:nextToken()
-while token do
-	local toprint = token.domain .. " "
-	toprint = toprint .. "(".. tostring(token.startLine) .. ", " .. tostring(token.startPos) .. ")-(" .. tostring(token.finishLine) .. ", " .. tostring(token.finishPos) .. ")"
-	if token.value then toprint = toprint .. ": ".. token.value end
-	print(toprint)
-	table.insert(tokens, token)
-	token = lexer:nextToken()
-end
-print()
+	local lexer = Calc_lexer(fa, symbol2factor, code, priority2tokenType)
 
-function calc_process(ppt)
+	local tokens = {}
+	local token = lexer:nextToken()
+	while token do
+		local toprint = token.domain .. " "
+		toprint = toprint .. "(".. tostring(token.startLine) .. ", " .. tostring(token.startPos) .. ")-(" .. tostring(token.finishLine) .. ", " .. tostring(token.finishPos) .. ")"
+		if token.value then toprint = toprint .. ": ".. token.value end
+		print(toprint)
+		table.insert(tokens, token)
+		token = lexer:nextToken()
+	end
+	print()
+
 	local rules = {}
 	local domains = {"+", "-", "*", "/", "(", ")", "INTEGER", "END_OF_PROGRAM"}
 	local domains_map = list2map(domains)
