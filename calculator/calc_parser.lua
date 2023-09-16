@@ -173,7 +173,7 @@ function calc_process(ppt, grammarPath)
 	end
 	evalTh = function (node)
 		if #node.subtree == 0 then return end
-		local Th = evalEh(node.subtree[3])
+		local Th = evalTh(node.subtree[3])
 		local F = evalF(node.subtree[2])
 		local op = node.subtree[1].domain == "*" and function (a, b) return a*b end
 										  or  function (a, b) return a/b end
