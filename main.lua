@@ -1,8 +1,8 @@
 package.path = ".\\..\\?.lua;.\\calculator\\?.lua;" .. package.path
 
--- CFG_INPUT_GRAMMAR = "input1.txt" -- self-describing grammar
-CFG_INPUT_GRAMMAR = "calc.txt" -- calculator grammar
-CFG_USE_GENERATED_CSV = false
+CFG_INPUT_GRAMMAR = "input1.txt" -- self-describing grammar
+-- CFG_INPUT_GRAMMAR = "calc.txt" -- calculator grammar
+CFG_USE_GENERATED_CSV = true
 CFG_GENERATE_CSV = true
 CFG_GENERATE_CALCULATOR_CODE = CFG_INPUT_GRAMMAR == "calc.txt"
 
@@ -189,7 +189,7 @@ if CFG_USE_GENERATED_CSV then
 else
 	ppt = csv2table("table.csv")
 end
-require('test')
+require('process')
 -- process(process(process(process(process(process(ppt,tokens),tokens),tokens),tokens),tokens),tokens)
 
 local ppt2 = process(ppt, tokens)
@@ -202,7 +202,7 @@ if CFG_GENERATE_CALCULATOR_CODE then
 	file = io.open("calculator.lua", "w")
 	file:write(calc_code)
 	file:close()
-	require('calc_lexer')
-	require('calc_parser')
-	calc_process(ppt2)
+	-- require('calc_lexer')
+	-- require('calc_parser')
+	-- calc_process(ppt2)
 end
